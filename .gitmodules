@@ -1,0 +1,15 @@
+[submodule "lib/gl3w"]
+	path = lib/gl3w
+	url = https://github.com/skaslev/gl3w
+[submodule "lib/glfw"]
+	path = lib/glfw
+	url = https://github.com/glfw/glfw
+[submodule "lib/stb"]
+	path = lib/stb
+	url = https://github.com/nothings/stb
+[submodule "lib/fontstash"]
+	path = lib/fontstash
+	url = https://github.com/memononen/fontstash.git
+[submodule "lib/glew"]
+	path = lib/glew
+	url = https://github.com/nigels-com/glew

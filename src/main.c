@@ -1,48 +1,32 @@
-#define GLFW_INCLUDE_NONE
-#include <GL/glew.h>
+#include <glad/glad.h>				// Or any other GL header of your choice.
+
+#include <windows.h>
+#include <stdio.h>					// malloc, free, fopen, fclose, ftell, fseek, fread
+#include <string.h>					// memset
+#define FONTSTASH_IMPLEMENTATION	// Expands implementation
+#include "fontstash.h"
+
+
 #include <GLFW/glfw3.h>
+#include <stdlib.h>
 
-// TODO all includes..
-#include "editor/editor.h"
-#include "renderer/font.h"
-#include "renderer/renderer.h"
+#define GLFONTSTASH_IMPLEMENTATION	// Expands implementation
+#include "glfontstash.h"
+///////
 
-typedef union {
-	int i;
-	unsigned int ui;
-	float f;
-	const void *v;
-} Arg;
-
-typedef struct {
-	unsigned int special_key;
-    unsigned int key;
-    void (*callback)();
-    const Arg arg;
-} Key;
-
-#include "config.h"
-#include "input/input.h"
-
-struct texture_font_t* font_main;
+#include "uix.h"
+#include "buf.h"
 
 void* window = NULL;
 
 static int window_init_width = 1600;
 static int window_init_height = 900;
+struct FONScontext* fs;
+struct buf_t* buf;
 
 void render();
 
 static void error_callback(int error, const char* description) {
-    PRINT_C(error, description);
-}
-
-static void framebuffer_size_callback(struct GLFWwindow* window, int width, int height) {
-    renderer_framebuffer_width = width;
-    renderer_framebuffer_height = height;
-    glViewport(0, 0, width, height);
-    glScissor(0, 0, width, height);
-    render();
 }
 
 void center_window(GLFWwindow *window, GLFWmonitor *monitor) {
@@ -61,60 +45,63 @@ void center_window(GLFWwindow *window, GLFWmonitor *monitor) {
     glfwSetWindowPos(window, monitorX + (mode->width - windowWidth) / 2, monitorY + (mode->height - windowHeight) / 2);
 }
 
+void character_callback(GLFWwindow* window, unsigned int codepoint) {
+    buf_insert(buf, codepoint);
+}
+
+void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
+    if (key == GLFW_KEY_E && action == GLFW_PRESS)
+    printf("%d", key);
+}
+
+
+// void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
+//     if (key == GLFW_KEY_BACKSPACE && action == GLFW_PRESS) {
+//         buf_delete(buf);
+//     }
+
+//     if (key == GLFW_KEY_LEFT && action == GLFW_PRESS) {
+//         buf_left(buf);
+//     }
+
+//     if (key == GLFW_KEY_RIGHT && action == GLFW_PRESS) {
+//         buf_right(buf);
+//     }
+// }
+
 int main(void) {
-    if (!glfwInit()) {
-        ERROR("can't initialize glfw");
-    }
+    if (!glfwInit())
+        return -1;
 
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-#ifdef __APPLE__
-    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-#endif
-
-    renderer_framebuffer_width = window_init_width;
-    renderer_framebuffer_height = window_init_height;
-    window = glfwCreateWindow(window_init_width, window_init_height, "Buff", NULL, NULL);
-    // center_window(window, glfwGetPrimaryMonitor());
-    if (window == NULL) {
-        ERROR("can't create glfw window");
-    }
-
-    glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
-    glfwSetCharCallback(window, character_callback);
-    glfwSetKeyCallback(window, keyboard_callback);
+    /* Create a windowed mode window and its OpenGL context */
+    window = glfwCreateWindow(640, 480, "Hello World", NULL, NULL);
+    
     glfwSetErrorCallback(error_callback);
+    glfwSetCharCallback(window, character_callback);
+    glfwSetKeyCallback(window, key_callback);
     
     glfwMakeContextCurrent(window);
     glfwSwapInterval(1);
 
-    GLenum err = glewInit();
-	if (GLEW_OK != err) {
-		ERROR_M("can't initialize glew: ", glewGetErrorString(err));
-		glfwTerminate();
-	}
-
-    PRINT_M("OpenGL", glGetString(GL_VERSION));
-    PRINT_M("GLSL", glGetString(GL_SHADING_LANGUAGE_VERSION));
+    gladLoadGL();
     
     glfwSetTime(0);
 
-    renderer_init();
-    editor_init_renderer();
-    input_init();
-    font_main = font_load_from_file("res/fonts/JetBrainsMono-Regular.ttf", 25);
+    buf = buf_create();
+    fs = glfonsCreate(512, 512, FONS_ZERO_TOPLEFT);
+
+    // Add font to stash.
+    int fontNormal = fonsAddFont(fs, "sans", "res/fonts/JetBrainsMono-Regular.ttf");
+    fonsSetFont(fs, fontNormal);
+
+    uix_context_init(fs);
 
     while (!glfwWindowShouldClose(window)) {
-        //glfwWaitEvents();
-        glfwPollEvents();
-        input_handle();
-
         render();
 
         glfwSwapBuffers(window);
+        //glfwWaitEvents();
+        glfwPollEvents();
     }
 
     glfwDestroyWindow(window);
@@ -123,12 +110,59 @@ int main(void) {
 }
 
 void render() {
-    glClearColor(0.1, 0.1, 0.1, 1);
-    glClear(GL_COLOR_BUFFER_BIT);
+    int width, height;
+    glfwGetFramebufferSize(window, &width, &height);
+    // Update and render
+    glViewport(0, 0, width, height);
+    glClearColor(1.0f, 0.0f, 1.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glDisable(GL_TEXTURE_2D);
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    glOrtho(0,width,height,0,-1,1);
 
-    renderer_begin();
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+    glDisable(GL_DEPTH_TEST);
+    glColor4ub(255,255,255,255);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
+    glEnable(GL_CULL_FACE);
 
-    editor_render(font_main);
+    float dx = 0, dy = 0;
+    unsigned int white = glfonsRGBA(255,255,255,255);
+    unsigned int brown = glfonsRGBA(192,128,0,128);
 
-    renderer_end();
+    fonsSetSize(fs, 124.0f);
+    fonsSetColor(fs, white);
+    fonsDrawText(fs, dx,dy,"The big ", NULL);
+
+    fonsSetSize(fs, 24.0f);
+    fonsSetAlign(fs, FONS_ALIGN_TOP);
+    fonsSetColor(fs, brown);
+    
+    fonsDrawText(fs, dx,dy,"brown fox", NULL);
+    fonsDrawText(fs, dx,dy,"brown fox", NULL);
+
+    uix_newframe(window);
+
+    uix_navbar_begin();
+    uix_navbar_item("File");
+    uix_navbar_item("Download");
+    uix_navbar_end();
+
+    uix_next_window_size(100, 100, UIX_COND_ONCE);
+    uix_begin("treeview");
+    uix_end();
+
+    uix_next_window_size(100, 100, UIX_COND_ONCE);
+    uix_begin("code");
+    uix_button("ASDjJžžžćč");
+    uix_button("2");
+    uix_end();
+
+    fonsDrawText(fs, 100, 100, buf->buf, buf->gap);
+    fonsDrawText(fs, 100, 120, buf->gap + buf->gap_size, buf->buf + buf->buf_size);
 }

@@ -6,7 +6,8 @@
         {
             "label": "build",
             "type": "shell",
-            "command": "./build.sh"
+            "command": "./build.bat",
+            "args": [ "-no-cmake" ]
         }
     ]
 }

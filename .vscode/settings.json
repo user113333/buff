@@ -47,6 +47,12 @@
         "streambuf": "cpp",
         "cinttypes": "cpp",
         "typeinfo": "cpp",
-        "*.cp": "c"
+        "*.cp": "c",
+        "glfw3.h": "c",
+        "fontstash.h": "c",
+        "glfontstash.h": "c",
+        "gl3w.h": "c",
+        "glcorearb.h": "c",
+        "glad.h": "c"
     }
 }
